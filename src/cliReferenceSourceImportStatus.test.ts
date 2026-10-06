@@ -60,7 +60,7 @@ const successfulValues: readonly (readonly [string, unknown])[] = [
 ];
 
 describe("reference-source import CLI failure classification", () => {
-  it.each(["cancelled", "invalid-root", "io", "parse"] as const)(
+  it.each(["cancelled", "invalid-root", "io", "parse", "unsupported"] as const)(
     "recognizes the projected %s failure only at this command boundary",
     (code) => {
       const value = importFailure(code);
@@ -84,6 +84,7 @@ describe("reference-source import CLI logging seam", () => {
     ["invalid-root", invalidRootFailure, true],
     ["io", importFailure("io"), true],
     ["parse", importFailure("parse"), true],
+    ["unsupported", importFailure("unsupported"), true],
     ["configuration", configurationFailure, true],
     ["success", { status: "complete", entries: [] }, false],
   ] as const)(

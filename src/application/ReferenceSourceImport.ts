@@ -132,6 +132,7 @@ const sortExclusions = (
  */
 export const importReferenceSource = async (
   options: ReferenceSourceImportOptions,
+  reader: typeof readReferenceSource = readReferenceSource,
 ): Promise<Result<HistoricalSourceGraph, ReferenceSourceImportError>> => {
   if (isAborted(options.signal)) return err(cancelled());
   const prepared = await prepareReferenceSourceImport(options);
@@ -153,7 +154,7 @@ export const importReferenceSource = async (
   };
 
   const [readResult, vcs] = await Promise.all([
-    readReferenceSource(root, {
+    reader(root, {
       ...(options.signal === undefined ? {} : { signal: options.signal }),
       shouldExclude,
     }),
@@ -163,6 +164,8 @@ export const importReferenceSource = async (
   if (!readResult.ok) {
     const error = readResult.error;
     if (error.code === "cancelled") return err(cancelled());
+    if (error.code === "unsupported")
+      return err(failure("unsupported", error.message));
     return err(failure("io", error.message));
   }
 
