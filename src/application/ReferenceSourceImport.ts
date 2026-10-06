@@ -9,6 +9,7 @@ import {
 } from "../domain/referenceSourceGraph.js";
 import { err, ok, type Result } from "../domain/result.js";
 import { readReferenceSource } from "../reference/ReferenceSourceReader.js";
+import type { ReferenceSourceReaderError } from "../reference/ReferenceSourceReaderTypes.js";
 import { parseReferenceSourceEntries } from "./ReferenceSourceImportEntries.js";
 import { readReferenceSourceVcs } from "./ReferenceSourceVcsAdapter.js";
 import {
@@ -33,6 +34,17 @@ const failure = (
 
 const cancelled = (): ReferenceSourceImportError =>
   failure("cancelled", "Reference source import cancelled");
+
+/** Preserve expected reader failures at the historical-source import boundary. */
+export const referenceSourceImportReadError = (
+  error: ReferenceSourceReaderError,
+): ReferenceSourceImportError =>
+  error.code === "cancelled"
+    ? cancelled()
+    : failure(
+        error.code === "unsupported" ? "unsupported" : "io",
+        error.message,
+      );
 
 const isAborted = (signal?: AbortSignal): boolean => signal?.aborted === true;
 
@@ -160,11 +172,8 @@ export const importReferenceSource = async (
     readReferenceSourceVcs(root, options.signal),
   ]);
 
-  if (!readResult.ok) {
-    const error = readResult.error;
-    if (error.code === "cancelled") return err(cancelled());
-    return err(failure("io", error.message));
-  }
+  if (!readResult.ok)
+    return err(referenceSourceImportReadError(readResult.error));
 
   if (isAborted(options.signal)) return err(cancelled());
 

@@ -94,6 +94,15 @@ to the comparison Evidence in a live session.
 
 ## Historical source-to-bundle comparison
 
+Creating a historical graph with `rea import-reference-source <directory>`
+requires safe no-follow file-opening support. The current reader supports
+Linux and macOS; Windows-native imports are unavailable and return an
+`unsupported_provider` failure with exit code 1. Changing directory permissions
+or reinstalling REA does not add this capability. Run the import on Linux or
+macOS, or in WSL where the source tree is accessible, and supply the resulting
+`HistoricalSourceGraph` to the comparison workflow. This import limitation does
+not prevent comparison using a valid graph already supplied by the caller.
+
 `compare_source_to_bundle` compares one cryptographically committed
 `HistoricalSourceGraph` with authenticated application-graph Evidence. The
 stable scoring model reports every admitted signal and weight: exact source

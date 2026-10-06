@@ -3,7 +3,7 @@ import type { ReferenceSourcePolicy } from "../domain/referenceSourcePolicy.js";
 /** Typed expected failure returned by historical-source imports. */
 export interface ReferenceSourceImportError {
   readonly tag: "reference-source-import";
-  readonly code: "cancelled" | "invalid-root" | "io" | "parse";
+  readonly code: "cancelled" | "invalid-root" | "io" | "parse" | "unsupported";
   readonly message: string;
 }
 
@@ -22,6 +22,11 @@ export const projectReferenceSourceImportError = (
       category: "invalid_input",
       message:
         "Reference source directory could not be opened. Check that the path exists, is readable, and points to a directory.",
+    };
+  if (error.code === "unsupported")
+    return {
+      category: "unsupported_provider",
+      message: `Reference source import is unavailable: ${error.message}. Run the import on Linux or macOS, or in WSL with access to the source tree, then supply the resulting HistoricalSourceGraph.`,
     };
   if (error.code === "io")
     return {

@@ -25,6 +25,12 @@ const configurationFailure = {
 };
 
 const invalidRootFailure = importFailure("invalid-root");
+const unsupportedFailure = {
+  error: "Import failed",
+  category: "unsupported_provider",
+  message:
+    "Safe no-follow file opens are unavailable. Run the import on Linux or macOS.",
+};
 
 const successfulValues: readonly (readonly [string, unknown])[] = [
   ["undefined", undefined],
@@ -60,7 +66,7 @@ const successfulValues: readonly (readonly [string, unknown])[] = [
 ];
 
 describe("reference-source import CLI failure classification", () => {
-  it.each(["cancelled", "invalid-root", "io", "parse"] as const)(
+  it.each(["cancelled", "invalid-root", "io", "parse", "unsupported"] as const)(
     "recognizes the projected %s failure only at this command boundary",
     (code) => {
       const value = importFailure(code);
@@ -68,6 +74,27 @@ describe("reference-source import CLI failure classification", () => {
       expect(isReferenceSourceImportCliFailure(value)).toBe(true);
     },
   );
+
+  it("recognizes an unsupported-reader failure without accepting nearby shapes", () => {
+    expect(isCliOperationFailure(unsupportedFailure)).toBe(false);
+    expect(isReferenceSourceImportCliFailure(unsupportedFailure)).toBe(true);
+    for (const value of [
+      { ...unsupportedFailure, category: "unsupported" },
+      { ...unsupportedFailure, error: "Other failure" },
+      { ...unsupportedFailure, message: "" },
+      { ...unsupportedFailure, extra: true },
+    ])
+      expect(isReferenceSourceImportCliFailure(value)).toBe(false);
+  });
+
+  it("projects unavailable no-follow support with actionable recovery", () => {
+    const value = importFailure("unsupported");
+    expect(value.category).toBe("unsupported_provider");
+    expect(value.message).toContain("Internal import diagnostic");
+    expect(value.message).toContain("Linux or macOS");
+    expect(value.message).toContain("WSL");
+    expect(value.message).not.toMatch(/permissions|reinstall/iu);
+  });
 
   it("retains canonical configuration failure classification", () => {
     expect(isReferenceSourceImportCliFailure(configurationFailure)).toBe(true);
@@ -84,6 +111,7 @@ describe("reference-source import CLI logging seam", () => {
     ["invalid-root", invalidRootFailure, true],
     ["io", importFailure("io"), true],
     ["parse", importFailure("parse"), true],
+    ["unsupported", unsupportedFailure, true],
     ["configuration", configurationFailure, true],
     ["success", { status: "complete", entries: [] }, false],
   ] as const)(

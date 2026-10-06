@@ -364,6 +364,7 @@ jobs:
       - name: Run curated Windows capability tests
         run: >-
           npx vitest run --coverage.enabled=false
+          tests/boundary/cli/referenceSourceImportStatus.test.ts
           tests/boundary/filesystem/binaryTarget.test.ts
           tests/boundary/filesystem/safeOutputTree.test.ts
           tests/boundary/providers/native/artifactProvider.archiveSafety.test.ts
