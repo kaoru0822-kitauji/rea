@@ -136,6 +136,7 @@ export class GhidraHeadlessLauncher implements GhidraLauncher {
         command: command.command,
         arguments: command.arguments,
         runId: session.runId,
+        cwd: session.runtimeRoot,
         // analyzeHeadless is an interpreter-driven script. Parent identity and
         // the per-process run token remain the cleanup authority.
         expectedCommand: null,

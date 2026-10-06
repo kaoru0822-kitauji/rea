@@ -12,6 +12,7 @@ await writeFile(
   join(runtimeRoot, "launch-capture.json"),
   `${JSON.stringify({
     arguments: arguments_,
+    working_directory: process.cwd(),
     environment: {
       HOME: process.env.HOME,
       USERPROFILE: process.env.USERPROFILE,

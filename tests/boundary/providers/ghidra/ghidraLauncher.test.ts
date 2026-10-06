@@ -1,4 +1,4 @@
-import { access, chmod, readFile, rm, stat } from "node:fs/promises";
+import { access, chmod, mkdir, readFile, rm, stat } from "node:fs/promises";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -194,8 +194,10 @@ describe("Ghidra headless launcher", () => {
       }),
     ).toThrow(/metacharacters/u);
   });
+});
 
-  it("keeps authority in a private descriptor and isolates Ghidra state", async () => {
+describe("Ghidra headless launch isolation", () => {
+  it("keeps authority and script discovery inside the private runtime", async () => {
     vi.stubEnv("GHIDRA_JAVA_OPTIONS", "-javaagent:/unapproved/agent.jar");
     vi.stubEnv("JAVA_TOOL_OPTIONS", "-Duser.home=/unapproved/home");
     vi.stubEnv("JDK_JAVA_OPTIONS", "-XX:MaxRAMPercentage=99");
@@ -205,6 +207,9 @@ describe("Ghidra headless launcher", () => {
     const runtime = await createGhidraTestRuntime(parent);
     runtimes.push(runtime);
     const runtimeRoot = runtime.path;
+    const callerRoot = await createTestTempDirectory("rea-launcher-caller-");
+    roots.push(callerRoot);
+    await mkdir(join(callerRoot, "ReaGhidraBridge.java"));
     const token = "secret-token-that-must-not-leak";
     const javaHome =
       process.platform === "win32" ? "C:\\Java\\jdk-21" : "/opt/jdk-21";
@@ -213,17 +218,21 @@ describe("Ghidra headless launcher", () => {
       javaHome,
       bridgeScriptPath: "/package/bridge/ReaGhidraBridge.java",
     });
-    const launched = await launcher.launch({
-      runtimeRoot,
-      transport: "unix-socket",
-      endpointPath: join(runtimeRoot, "bridge.sock"),
-      token,
-      runId: "d6fcbb66-e829-4ff6-a535-0035aec63139",
-      targetPath: "/tmp/fixture",
-      targetSha256: "b".repeat(64),
-      providerVersion: "12.1.4",
-      profileDigest: "a".repeat(64),
-    });
+    const originalWorkingDirectory = process.cwd();
+    process.chdir(callerRoot);
+    const launched = await launcher
+      .launch({
+        runtimeRoot,
+        transport: "unix-socket",
+        endpointPath: join(runtimeRoot, "bridge.sock"),
+        token,
+        runId: "d6fcbb66-e829-4ff6-a535-0035aec63139",
+        targetPath: "/tmp/fixture",
+        targetSha256: "b".repeat(64),
+        providerVersion: "12.1.4",
+        profileDigest: "a".repeat(64),
+      })
+      .finally(() => process.chdir(originalWorkingDirectory));
     expect(launched.ok).toBe(true);
     if (!launched.ok) return;
     const capturePath = join(runtimeRoot, "launch-capture.json");
@@ -236,6 +245,7 @@ describe("Ghidra headless launcher", () => {
     expect(capture).toMatchObject({
       ...(process.platform === "win32" ? {} : { descriptor_mode: 0o600 }),
       descriptor_has_token: true,
+      working_directory: runtimeRoot,
     });
     expectIsolatedEnvironment(capture.environment, runtimeRoot, javaHome);
     expect(capture.environment.GHIDRA_HEADLESS_JAVA_OPTIONS).toBe(
