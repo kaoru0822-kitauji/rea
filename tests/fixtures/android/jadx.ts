@@ -15,7 +15,10 @@ import { createTestTempDirectory } from "../temporaryDirectory.js";
 const fixture = fileURLToPath(new URL("./jadx-mcp.mjs", import.meta.url));
 
 /** Real owned subprocess running a synthetic MCP producer, with no module mocks. */
-export const createJadxProtocolFixture = async (mode = "normal") => {
+export const createJadxProtocolFixture = async (
+  mode = "normal",
+  environment: Readonly<Record<string, string | undefined>> = {},
+) => {
   const root = await createTestTempDirectory("rea-android-boundary-");
   const apk = join(root, "fixture.apk");
   const jar = join(root, "fixture.jar");
@@ -25,9 +28,12 @@ export const createJadxProtocolFixture = async (mode = "normal") => {
     runId: string;
     cwd: string | undefined;
     pid: number | undefined;
+    arguments: readonly string[];
+    env: NodeJS.ProcessEnv | undefined;
+    hostEnvironment: NodeJS.ProcessEnv | undefined;
   }[] = [];
   const provider = createAndroidAnalysisProvider(
-    { ...process.env, REA_JADX_MCP_JAR: jar },
+    { ...process.env, REA_JADX_MCP_JAR: jar, ...environment },
     async (options) => {
       const spawned = await spawnOwnedProviderProcess({
         ...options,
@@ -40,6 +46,9 @@ export const createJadxProtocolFixture = async (mode = "normal") => {
         runId: options.runId,
         cwd: options.cwd,
         pid: spawned.process.pid,
+        arguments: options.arguments,
+        env: options.env,
+        hostEnvironment: options.hostEnvironment,
       });
       if (mode === "cleanup-failure") {
         onTestFinished(async () => {

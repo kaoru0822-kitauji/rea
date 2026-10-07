@@ -3,13 +3,36 @@ import { constants } from "node:fs";
 import { isAbsolute, join } from "node:path";
 import { AnalysisCapabilityUnavailableError } from "../domain/analysisErrorCore.js";
 import type { AndroidOperation } from "../domain/android/androidAnalysis.js";
-import { JADX_JAR_CONFIGURATION_REMEDIATION } from "./JadxRelease.js";
+import {
+  JADX_DEFAULT_HEAP_LIMIT_MIB,
+  JADX_JAR_CONFIGURATION_REMEDIATION,
+} from "./JadxRelease.js";
 
 /** Caller-supplied tools, resolved only when an Android operation is selected. */
 export interface JadxConfiguration {
   readonly jar: string;
   readonly java: string;
+  readonly heapLimitMib: number;
 }
+
+const parseHeapLimit = (
+  configured: string | undefined,
+  operation: AndroidOperation,
+): number => {
+  if (configured === undefined) return JADX_DEFAULT_HEAP_LIMIT_MIB;
+  const heapLimitMib = Number(configured);
+  if (
+    /^\d+$/.test(configured) &&
+    heapLimitMib > 0 &&
+    Number.isSafeInteger(heapLimitMib)
+  )
+    return heapLimitMib;
+  throw new AnalysisCapabilityUnavailableError(
+    "jadx",
+    operation,
+    "REA_JADX_HEAP_LIMIT_MIB must be a positive base-10 integer number of MiB, such as 8192.",
+  );
+};
 
 /** Admit explicit local tooling without installing or changing host configuration. */
 export const resolveJadxConfiguration = async (
@@ -29,6 +52,10 @@ export const resolveJadxConfiguration = async (
     );
   if (jar === undefined || !isAbsolute(jar))
     throw unavailable(JADX_JAR_CONFIGURATION_REMEDIATION);
+  const heapLimitMib = parseHeapLimit(
+    environment.REA_JADX_HEAP_LIMIT_MIB,
+    operation,
+  );
   const java =
     environment.JAVA_HOME === undefined
       ? "java"
@@ -55,5 +82,5 @@ export const resolveJadxConfiguration = async (
       );
     }
   }
-  return { jar: await realpath(jar), java };
+  return { jar: await realpath(jar), java, heapLimitMib };
 };

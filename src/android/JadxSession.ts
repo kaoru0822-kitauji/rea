@@ -20,7 +20,6 @@ import {
   parseJadxJson,
 } from "./JadxProtocol.js";
 import {
-  JADX_HEAP_LIMIT_MIB,
   JADX_RELEASE,
   JADX_PROVIDER_IDENTITY,
   JADX_LIMITATIONS,
@@ -34,6 +33,7 @@ export class JadxSession {
 
   constructor(
     options: Omit<OwnedProviderProcessSpawnOptions, "runId" | "stdin">,
+    readonly heapLimitMib: number,
     launcher?: JadxLauncher,
   ) {
     this.transport = new JadxMcpTransport(options, launcher);
@@ -85,7 +85,7 @@ export class JadxSession {
         source_revision:
           jarHash === JADX_RELEASE.sha256 ? JADX_RELEASE.revision : null,
         worker_count: 1,
-        heap_limit_mib: JADX_HEAP_LIMIT_MIB,
+        heap_limit_mib: this.heapLimitMib,
       } as const;
       const result = await analyzeJadxRequest(tools, request, loaded, engine);
       return createAnalysisExecution(result, JADX_PROVIDER_IDENTITY, {

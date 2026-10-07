@@ -50,6 +50,33 @@ it("retains APK identity, original input, raw producer data and normalized obser
   await verifyCleanup(launches);
 });
 
+it("applies an explicit heap limit to the owned JVM and reports it", async () => {
+  const { service, apk, launches } = await setup("normal", {
+    JAVA_TOOL_OPTIONS: "-Xmx8g",
+    REA_JADX_HEAP_LIMIT_MIB: "8192",
+  });
+  const outcome = await service.execute("inspect_android_package", {
+    path: apk,
+  });
+  if (!outcome.ok) throw outcome.error;
+  const result = androidResultSchemas.inspect_android_package.parse(
+    outcome.value.normalized_result,
+  );
+  expect(result.engine.heap_limit_mib).toBe(8192);
+  expect(launches).toEqual([
+    expect.objectContaining({
+      arguments: expect.arrayContaining(["-Xmx8192m"]),
+      env: expect.objectContaining({
+        _JAVA_OPTIONS: "-Xmx8192m -XX:ActiveProcessorCount=1",
+      }),
+      hostEnvironment: expect.objectContaining({
+        JAVA_TOOL_OPTIONS: "-Xmx8g",
+      }),
+    }),
+  ]);
+  await verifyCleanup(launches);
+});
+
 it("fetches all class pages rather than silently retaining the first upstream page", async () => {
   const { service, apk, launches } = await setup();
   const outcome = await service.execute("search_android_classes", {

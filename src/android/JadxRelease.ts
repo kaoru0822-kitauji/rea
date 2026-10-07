@@ -6,11 +6,12 @@ export const JADX_RELEASE = Object.freeze({
   url: "https://github.com/1013503897/jadx-headless-mcp/releases/download/v0.7.1/jadx-headless-mcp-0.7.1-all.jar",
 });
 
-/** JVM heap ceiling applied to every owned JADX worker process. */
-export const JADX_HEAP_LIMIT_MIB = 512;
+/** Default JVM heap ceiling applied to each owned JADX worker process. */
+export const JADX_DEFAULT_HEAP_LIMIT_MIB = 512;
 
-/** JVM `-Xmx` argument matching {@link JADX_HEAP_LIMIT_MIB}. */
-export const JADX_HEAP_XMX_ARGUMENT = `-Xmx${JADX_HEAP_LIMIT_MIB}m`;
+/** Build the JVM `-Xmx` argument for an admitted MiB heap ceiling. */
+export const jadxHeapXmxArgument = (heapLimitMib: number): string =>
+  `-Xmx${heapLimitMib}m`;
 
 /** Remediation when `REA_JADX_MCP_JAR` is missing or not an absolute path. */
 export const JADX_JAR_CONFIGURATION_REMEDIATION = `Set REA_JADX_MCP_JAR to the absolute path of a caller-supplied jadx-headless-mcp ${JADX_RELEASE.version} JAR. REA does not download or install it.`;

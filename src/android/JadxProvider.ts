@@ -20,7 +20,7 @@ import {
 } from "./AndroidTargetSnapshot.js";
 import { resolveJadxConfiguration } from "./JadxConfiguration.js";
 import type { JadxLauncher } from "./JadxMcpTransport.js";
-import { JADX_HEAP_XMX_ARGUMENT } from "./JadxRelease.js";
+import { jadxHeapXmxArgument } from "./JadxRelease.js";
 import { JadxSession } from "./JadxSession.js";
 
 const OPERATION_TIMEOUT_MS = 120_000;
@@ -190,6 +190,7 @@ export class JadxProvider implements AndroidAnalysisPort {
         this.environment,
         request.operation,
       );
+      const heapXmxArgument = jadxHeapXmxArgument(configuration.heapLimitMib);
       signal.throwIfAborted();
       root = await PrivateRuntimeRoot.create({ prefix: "rea-android-" });
       const engine = await snapshotAndroidEngine(configuration.jar, root.path);
@@ -204,7 +205,7 @@ export class JadxProvider implements AndroidAnalysisPort {
         {
           command: configuration.java,
           arguments: [
-            JADX_HEAP_XMX_ARGUMENT,
+            heapXmxArgument,
             "-XX:ActiveProcessorCount=1",
             "-jar",
             engine.path,
@@ -218,9 +219,10 @@ export class JadxProvider implements AndroidAnalysisPort {
           cwd: root.path,
           hostEnvironment: this.environment,
           env: {
-            _JAVA_OPTIONS: `${JADX_HEAP_XMX_ARGUMENT} -XX:ActiveProcessorCount=1`,
+            _JAVA_OPTIONS: `${heapXmxArgument} -XX:ActiveProcessorCount=1`,
           },
         },
+        configuration.heapLimitMib,
         this.launcher,
       );
       outcome = ok(

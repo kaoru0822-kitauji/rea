@@ -40,5 +40,46 @@ it("accepts a verified explicit java binary and canonicalizes the JAR", async ()
       { REA_JADX_MCP_JAR: jar, JAVA_HOME: javaHome },
       "inspect_android_package",
     ),
-  ).resolves.toEqual({ jar: await realpath(jar), java });
+  ).resolves.toEqual({ jar: await realpath(jar), java, heapLimitMib: 512 });
 });
+
+it("uses the default heap limit unless the caller selects a larger one", async () => {
+  const root = await createTestTempDirectory("rea-jadx-config-");
+  const jar = join(root, "jadx-headless-mcp.jar");
+  await writeFile(jar, "fixture jar");
+
+  await expect(
+    resolveJadxConfiguration(
+      { REA_JADX_MCP_JAR: jar },
+      "inspect_android_package",
+    ),
+  ).resolves.toMatchObject({ heapLimitMib: 512 });
+  await expect(
+    resolveJadxConfiguration(
+      { REA_JADX_MCP_JAR: jar, REA_JADX_HEAP_LIMIT_MIB: "8192" },
+      "inspect_android_package",
+    ),
+  ).resolves.toMatchObject({ heapLimitMib: 8192 });
+});
+
+it.each(["", "0", "-1", "8g", "8192.0", " 8192", "9007199254740992"])(
+  "rejects invalid JADX heap limit %j",
+  async (heapLimitMib) => {
+    const root = await createTestTempDirectory("rea-jadx-config-");
+    const jar = join(root, "jadx-headless-mcp.jar");
+    await writeFile(jar, "fixture jar");
+
+    await expect(
+      resolveJadxConfiguration(
+        {
+          REA_JADX_MCP_JAR: jar,
+          REA_JADX_HEAP_LIMIT_MIB: heapLimitMib,
+        },
+        "inspect_android_package",
+      ),
+    ).rejects.toMatchObject({
+      _tag: "AnalysisCapabilityUnavailableError",
+      reason: expect.stringContaining("REA_JADX_HEAP_LIMIT_MIB"),
+    });
+  },
+);

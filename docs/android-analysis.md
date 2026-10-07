@@ -19,6 +19,8 @@ or MCP server environment:
 export REA_JADX_MCP_JAR=/absolute/path/jadx-headless-mcp-0.7.1-all.jar
 # Optional: select an existing JDK rather than java on PATH.
 export JAVA_HOME=/absolute/path/existing-jdk
+# Optional: increase the owned worker's maximum heap for a large APK.
+export REA_JADX_HEAP_LIMIT_MIB=8192
 ```
 
 Linux is verified with the public Appium ApiDemos fixture. The POSIX adapter can
@@ -117,11 +119,15 @@ If process cleanup cannot be confirmed, REA retains the workspace and reports it
 location. That provider instance blocks subsequent engine launches until the
 caller resolves the reported resources and starts a fresh instance.
 
-The provider serializes requests within each REA instance, uses one worker and
-sets JVM maximum heap to **512 MiB**. Heap is not a total RSS cap: the JVM also
-uses native memory. Independent REA instances have independent queues. Whole
-operations have a **120-second** execution deadline after reaching the queue's
-front; upstream decompilation is limited to **90 seconds**.
+The provider serializes requests within each REA instance and uses one worker.
+Its JVM maximum heap defaults to **512 MiB**. Set
+`REA_JADX_HEAP_LIMIT_MIB` to a positive integer number of MiB when an admitted
+APK requires more memory; this explicit provider setting controls the owned
+JVM's `-Xmx` value even when ambient Java option variables are also present.
+Heap is not a total RSS cap: the JVM also uses native memory. Independent REA
+instances have independent queues. Whole operations have a **120-second**
+execution deadline after reaching the queue's front; upstream decompilation is
+limited to **90 seconds**.
 
 Decoded manifest and method text have a **1 MiB** upstream byte budget and report
 truncation. A protocol frame above **8 MiB**, or cumulative stdout/stderr above
