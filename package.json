@@ -132,6 +132,7 @@
     "verify:ghidra:cross-format": "npm run build:cached && node scripts/verify-real-ghidra.mjs --cross-format",
     "verify:ghidra:windows": "npm run build:cached && npm run build:ghidra-windows-fixture && node scripts/verify-real-ghidra-windows.mjs",
     "verify:browser": "npm run build:cached && node scripts/verify-real-browser.mjs",
+    "verify:browser:network": "npm run build:cached && node scripts/verify-browser-network.mjs",
     "verify:electron": "npm run build:cached && node scripts/verify-real-electron.mjs",
     "verify:inspector": "npm run build:cached && node scripts/verify-real-javascript-runtime-observation.mjs",
     "verify:javascript-runtime": "npm run build:cached && node scripts/verify-local-javascript-runtime.mjs",
@@ -173,7 +174,8 @@
     "verify:ghidra:windows:package": "node scripts/verify-packaged-ghidra-windows.mjs",
     "build:ghidra:nativeaot": "node scripts/build-ghidra-nativeaot.mjs",
     "build:fixtures:nativeaot": "node scripts/generate-nativeaot-fixtures.mjs",
-    "verify:ghidra:nativeaot": "npm run build:cached && node scripts/verify-real-ghidra-nativeaot.mjs"
+    "verify:ghidra:nativeaot": "npm run build:cached && node scripts/verify-real-ghidra-nativeaot.mjs",
+    "verify:browser:scripts": "npm run build:cached && node scripts/verify-browser-scripts.mjs"
   },
   "lint-staged": {
     "*.{cjs,cts,js,jsx,mjs,mts,ts,tsx}": [

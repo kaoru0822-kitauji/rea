@@ -250,6 +250,11 @@ Import an older source tree as a reference. REA keeps it separate from observati
 rea import-reference-source /absolute/path/to/source
 ```
 
+Historical-source import requires safe no-follow file opens and currently runs
+on Linux and macOS. Native Windows reports `unsupported_host`; run the import
+with Linux REA in WSL or on another supported host. Changing permissions or
+reinstalling REA does not enable this Windows workflow.
+
 Imports read the path supplied to the command. File names do not cause automatic omissions; files are represented by hashes and metadata. To exclude selected paths, set `REA_REFERENCE_SECRET_PATTERNS_JSON` to a JSON string array of ignore patterns. Exports never replace an existing file unless `--overwrite` is explicit.
 
 Use a snapshot to save successful analysis results and reuse them on later runs. REA reuses a result only when the target bytes, operation, parameters, analysis tool, and settings match. It does not cache changes or cursor-dependent calls. Snapshot files stay local and use owner-only permissions.
@@ -345,20 +350,20 @@ See [native investigation](docs/native-investigation.md) for keyed archives, ins
 
 ## Tool catalog for investigation
 
-| Tool family               | Count | Examples                                                                                                                                                  |
-| ------------------------- | ----: | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Native inspection         |    41 | functions, pseudocode, assembly, strings, symbols, calls, references, annotations, byte reads, and file offsets                                           |
-| Investigation workflows   |    14 | app overviews, function dossiers, native APIs and dispatch, batch decompilation, feature traces, call paths, call graphs, Swift and Objective-C discovery |
-| Native macOS utilities    |     7 | Mach-O metadata, code signatures, plists, architectures, and Swift demangling without launching Hopper                                                    |
-| Artifact graph            |     5 | directory and package inventories, compiled Interface Builder files, Apple asset catalogs, and extraction                                                 |
-| Managed PE/CLI            |     7 | .NET identity, metadata, CIL instructions, native dependencies, reconstruction imports, and build comparisons                                             |
-| Firmware                  |     2 | Linux firmware region inspection and explicit extraction                                                                                                  |
-| Android APK               |     5 | package and manifest declarations, class search, member inventories, method decompilation, and incoming static references                                 |
-| Browser observation       |     9 | page structure, network metadata, scripts, source maps, WebMCP discovery, screenshots, and capture comparisons                                            |
-| Electron analysis         |     5 | renderer observation, static app mapping, and static/runtime reconciliation                                                                               |
-| JavaScript runtime        |     2 | Node/Electron Inspector target discovery, script locations, and execution-context events                                                                  |
-| Application workflows     |     7 | cross-layer feature traces, build comparisons, historical source mapping, static return-shape comparison, and reconstruction checks                       |
-| Workspace and observation |    21 | sessions, evidence bundles, navigation context, process/artifact/function comparisons, and open-question tracking                                         |
+| Tool family               | Count | Examples                                                                                                                                                            |
+| ------------------------- | ----: | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Native inspection         |    41 | functions, pseudocode, assembly, strings, symbols, calls, references, annotations, byte reads, and file offsets                                                     |
+| Investigation workflows   |    14 | app overviews, function dossiers, native APIs and dispatch, batch decompilation, feature traces, call paths, call graphs, Swift and Objective-C discovery           |
+| Native macOS utilities    |     7 | Mach-O metadata, code signatures, plists, architectures, and Swift demangling without launching Hopper                                                              |
+| Artifact graph            |     5 | directory and package inventories, compiled Interface Builder files, Apple asset catalogs, and extraction                                                           |
+| Managed PE/CLI            |     7 | .NET identity, metadata, CIL instructions, native dependencies, reconstruction imports, and build comparisons                                                       |
+| Firmware                  |     2 | Linux firmware region inspection and explicit extraction                                                                                                            |
+| Android APK               |     5 | package and manifest declarations, class search, member inventories, method decompilation, and incoming static references                                           |
+| Browser observation       |     9 | page structure, network metadata, scripts, source maps, WebMCP discovery, screenshots, and capture comparisons                                                      |
+| Electron analysis         |     5 | renderer observation, static app mapping, and static/runtime reconciliation                                                                                         |
+| JavaScript runtime        |     2 | Node/Electron Inspector target discovery, script locations, and execution-context events                                                                            |
+| Application workflows     |     8 | captured website script export; cross-layer feature traces, build comparisons, historical source mapping, static return-shape comparison, and reconstruction checks |
+| Workspace and observation |    21 | sessions, evidence bundles, navigation context, process/artifact/function comparisons, and open-question tracking                                                   |
 
 The public interface describes what the agent is trying to learn. Providers decide how to answer. macOS utilities handle common semantic inspection without launching Hopper; Hopper handles deeper native analysis; the process harness records direct behavioral captures.
 
@@ -372,6 +377,13 @@ Static Android APK inspection is verified on Linux with headless JADX; see [Andr
 - **Packages and resources:** Inspect directories, ZIP, APK, IPA, ASAR, plists, compiled Interface Builder files, and Apple asset catalogs. Artifact requests name the input and requested extraction or traversal directly; macOS DMG traversal also requires the host's native mounting support.
 - **JavaScript and Electron:** Map modules, imports, source maps, routes, IPC channels, storage, and native add-ons without running the app. Compare builds and trace a feature across the recovered graph. Dynamic and ambiguous relationships remain unresolved. See [JavaScript application workflows](docs/javascript-application-workflows.md).
 - **Websites:** Inspect a selected page in an existing Chrome-family browser. Capture page structure, network metadata, script evidence, and screenshots requested by the call. Passive observation does not navigate or execute page JavaScript. See [browser observation](docs/browser-observation.md).
+
+  Export retained scripts with `export_web_scripts` / `rea export-web-scripts`
+  into a verified local directory, then use the existing JavaScript analysis
+  and tracing tools. Source URLs, frame or transaction references, competing
+  versions, and missing-source states remain inline. See
+  [captured website scripts](docs/website-script-export.md).
+
 - **Electron and Node runtime observation:** Inspect selected Electron pages or attach to a Node/Electron V8 Inspector target. Inspector observation records script locations and execution-context events; it does not infer imports, IPC activity, or which modules executed. See [runtime observation](docs/javascript-runtime-observation.md).
 - **.NET assemblies:** Inspect metadata and CIL instructions, compare builds, and check declared native dependencies without loading or running the assembly. Imported decompiler output is labeled as analyst inference. See [managed-code analysis](docs/managed-code-analysis.md).
 - **Controlled behavior capture:** Run process, browser, or Electron scenarios with the target, actions, and lifecycle declared in each request, then compare the resulting evidence. Missing observations cannot establish that two runs behaved the same way.
@@ -626,9 +638,9 @@ Process Capture records behavior and is not a security sandbox.
 Capture a scenario or compare two saved Process Capture Evidence records:
 
 ```bash
-rea capture-process ./scenario.json > authority.json
-rea capture-process ./reconstruction.json > reconstruction.json
-rea compare-process-captures authority.json reconstruction.json
+rea capture-process ./authority-scenario.json --json > authority-capture.json
+rea capture-process ./reconstruction-scenario.json --json > reconstruction-capture.json
+rea compare-process-captures authority-capture.json reconstruction-capture.json --json
 ```
 
 The comparison reports each observed dimension separately and identifies the
@@ -636,9 +648,16 @@ first terminal, interaction, exit, filesystem, or process divergence.
 See [Process Capture](docs/process-capture.md) for scenario fields, limits, and
 evidence boundaries.
 
-REA installs a prebuilt PTY backend for supported macOS, Linux, and Windows
-architectures. If the capability check reports that the backend is unavailable,
-reinstall REA for the current platform and architecture.
+Process Capture currently runs on Linux and macOS with a working native PTY
+backend. Native Windows capture remains unavailable until the PTY adapter can
+verify descendant cleanup; installing or reinstalling its Windows PTY binary
+does not enable capture. For Linux commands, run Linux REA inside WSL.
+Comparing existing capture Evidence remains available on Windows.
+
+On supported capture hosts, a missing or incompatible PTY binary can be fixed
+by reinstalling REA for the current platform, architecture, and Node.js version
+with optional dependencies enabled. Use separate scenario and output files;
+`--json` produces the JSON consumed by the comparison command.
 
 ASAR inventory verifies Electron integrity metadata for both archive entries
 and `.asar.unpacked` companion files. Integrity failures identify the logical
